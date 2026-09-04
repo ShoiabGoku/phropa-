@@ -1,0 +1,22 @@
+{
+  "name": "Tsongra — Ladakh Local Market",
+  "short_name": "Tsongra",
+  "description": "Buy and sell Ladakh's own fruit, vegetables, grain and seed, direct between neighbours. No commission, no middleman.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F1E6",
+  "theme_color": "#E07A2F",
+  "lang": "en",
+  "categories": ["shopping", "food", "business"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Sell something", "url": "/#/sell" },
+    { "name": "Seed Bank", "url": "/#/seeds" },
+    { "name": "My chats", "url": "/#/chats" }
+  ]
+}

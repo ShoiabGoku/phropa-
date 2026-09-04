@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E07A2F">
+<meta name="description" content="Tsongra — buy and sell Ladakh's own fruit, vegetables, grain and seed, direct between neighbours.">
+<title>Tsongra · Ladakh Local Market</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="chorten" aria-hidden="true">
+      <svg viewBox="0 0 64 84" width="72" height="94">
+        <path d="M32 2 L38 14 H26 Z" fill="#D9A21B"/>
+        <circle cx="32" cy="17" r="4" fill="#D9A21B"/>
+        <path d="M24 22 h16 l-3 10 H27 Z" fill="#F7F1E6"/>
+        <ellipse cx="32" cy="42" rx="15" ry="12" fill="#F7F1E6"/>
+        <rect x="16" y="53" width="32" height="7" rx="2" fill="#F7F1E6"/>
+        <rect x="12" y="61" width="40" height="8" rx="2" fill="#F7F1E6"/>
+        <rect x="8" y="70" width="48" height="10" rx="3" fill="#F7F1E6"/>
+      </svg>
+    </div>
+    <h1 class="splash-name">TSONGRA</h1>
+    <p class="splash-sub">Ladakh Local Market</p>
+    <div class="flagline" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+</div>
+
+<div id="app" hidden></div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="sheet" class="sheet-wrap" hidden>
+  <div class="sheet-backdrop" data-close-sheet></div>
+  <div class="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
