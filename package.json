@@ -1,0 +1,12 @@
+{
+  "name": "tsongra",
+  "version": "1.0.0",
+  "description": "Tsongra — Ladakh Local Market. Farmers and buyers trade direct, with no commission and no wallet.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node seed-demo.js"
+  }
+}
