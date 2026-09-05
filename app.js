@@ -1,7 +1,8 @@
 // Boot, router and bottom navigation.
-import { h, $, toast } from './ui.js';
+import { h, $, toast, sheet, closeSheet, avatar } from './ui.js';
 import { t, initLang, getLang } from './i18n.js';
-import { state, loadCatalogue, loadMe, api } from './store.js';
+import { state, boot as bootStore, loadMe, api } from './store.js';
+import { localPersonas, localBecome, resetLocal } from './local-api.js';
 import * as V from './views.js';
 
 const app = $('#app');
@@ -50,7 +51,7 @@ async function route() {
   try {
     const node = await fn(hash.match(rx));
     if (my !== token) return;                  // a newer navigation won
-    app.replaceChildren(node, nav(tab));
+    app.replaceChildren(node, nav(tab), demoFab());
     window.scrollTo(0, 0);
   } catch (e) {
     if (my !== token) return;
@@ -58,7 +59,7 @@ async function route() {
       h('div', { class: 'screen pad', style: 'padding-top:40px' },
         h('p', { class: 'err' }, e.message),
         h('button', { class: 'btn btn-primary btn-block', style: 'margin-top:12px', onclick: () => route() }, t('retry'))),
-      nav(tab));
+      nav(tab), demoFab());
   }
 }
 
@@ -77,6 +78,54 @@ function nav(active) {
     item('sell', '＋', t('nav_sell'), '#/sell', 'sellbtn'),
     item('chats', '💬', t('nav_chats'), '#/chats'),
     item('me', '👤', t('nav_me'), '#/me'));
+}
+
+
+// ── demo mode ─────────────────────────────────────────────────────────────
+// With no server there is only one browser, so a two-sided handshake cannot be
+// shown by two people. The persona switcher lets one person be each side in
+// turn — agree as the buyer, become the seller, agree again, watch the phone
+// numbers unlock.
+function personaSheet() {
+  const people = localPersonas();
+  const rows = people.map((p) => h('button', {
+    class: 'seller-row', style: 'width:100%;text-align:start;margin-bottom:8px',
+    onclick: () => {
+      localBecome(p.id);
+      closeSheet();
+      location.reload();
+    },
+  },
+    avatar(p, 42),
+    h('div', { class: 'grow' },
+      h('b', {}, p.name),
+      h('div', { class: 'tiny muted' },
+        `${p.village}, ${(state.cat.DISTRICTS.find((d) => d.key === p.district) || {}).name || ''}`
+        + (p.delivers ? ' · 🛵 delivers' : '')),
+      p.bio ? h('div', { class: 'tiny muted truncate' }, p.bio) : null),
+    state.user && state.user.id === p.id ? h('span', { class: 'badge badge-green' }, '✓') : null));
+
+  sheet('🎭 Demo — become someone',
+    h('p', { class: 'muted small', style: 'margin-top:0' },
+      'This copy runs entirely in your browser. Nothing you do here reaches anyone else. '
+      + 'Switch person to see both sides of a negotiation — the phone numbers only unlock '
+      + 'when both of them have agreed the same terms.'),
+    ...rows,
+    h('button', {
+      class: 'btn btn-block', style: 'margin-top:6px',
+      onclick: async () => { await api('/api/logout', { method: 'POST' }); closeSheet(); location.reload(); },
+    }, 'Browse as a guest'),
+    h('button', {
+      class: 'btn btn-ghost btn-block', style: 'margin-top:10px;color:var(--maroon)',
+      onclick: () => { resetLocal(); closeSheet(); location.reload(); },
+    }, '↺ Reset the demo data'));
+}
+
+function demoFab() {
+  if (!state.local) return null;
+  const who = state.user ? state.user.name.split(' ')[0] : 'Guest';
+  return h('button', { class: 'demo-fab', onclick: personaSheet, 'aria-label': 'Demo persona' },
+    h('span', {}, '🎭'), h('b', {}, who));
 }
 
 // ── unread badge ──────────────────────────────────────────────────────────
@@ -113,7 +162,7 @@ document.addEventListener('net', paintNet);
   needsLanguagePick = firstRun;
 
   try {
-    await loadCatalogue();
+    await bootStore();
   } catch (e) {
     $('#splash').classList.add('gone');
     app.hidden = false;
@@ -143,6 +192,6 @@ document.addEventListener('net', paintNet);
   setInterval(pollUnread, 25000);
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();

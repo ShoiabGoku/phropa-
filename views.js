@@ -2,7 +2,7 @@ import { h, $, toast, sheet, closeSheet, rupee, unitLabel, ago, clock, avatar,
          topbar, empty, banner, shrinkImage, speak, flagstrip, nm } from './ui.js';
 import { t, getLang, setLang, LANGS } from './i18n.js';
 import { state, api, crop, category, district, zone, cacheListings, cachedListings,
-         loadMe, loadCatalogue } from './store.js';
+         photoUrl } from './store.js';
 
 export const go = (hash) => { location.hash = hash; };
 
@@ -214,7 +214,7 @@ async function fetchListings(params, cacheKey) {
 export function listingCard(l) {
   return h('button', { class: 'lcard', onclick: () => go('#/l/' + l.id) },
     h('div', { class: 'lthumb' },
-      l.photoId ? h('img', { src: `/photo/${l.photoId}`, alt: '', loading: 'lazy' }) : l.icon),
+      l.photoId ? h('img', { src: photoUrl(l.photoId), alt: '', loading: 'lazy' }) : l.icon),
     h('div', { class: 'lbody' },
       h('div', { class: 'lname' }, l.title),
       h('div', { class: 'lloc' }, `${l.village || district(l.district).name} · ${ago(l.createdAt)}`),
@@ -299,7 +299,7 @@ export async function viewListing(id) {
   root.replaceChildren(
     topbar(l.title, { sub: c.local, back: () => history.back() }),
     h('div', { class: 'photo-big' },
-      l.photoId ? h('img', { src: `/photo/${l.photoId}`, alt: l.title }) : l.icon),
+      l.photoId ? h('img', { src: photoUrl(l.photoId), alt: l.title }) : l.icon),
     h('div', { class: 'pad', style: 'padding-top:14px' },
       h('div', { class: 'row-between' },
         h('div', {},
@@ -813,7 +813,7 @@ const threadRow = (th) =>
   h('button', { class: 'thread-row', onclick: () => go('#/chat/' + th.id) },
     h('div', { class: 'lthumb', style: 'width:52px;height:52px;font-size:24px' },
       th.listing && th.listing.photoId
-        ? h('img', { src: `/photo/${th.listing.photoId}`, alt: '', loading: 'lazy' })
+        ? h('img', { src: photoUrl(th.listing.photoId), alt: '', loading: 'lazy' })
         : (th.listing ? th.listing.icon : '🧺')),
     h('div', { class: 'grow' },
       h('div', { class: 'row-between' },
