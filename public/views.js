@@ -1,6 +1,8 @@
 import { h, $, toast, sheet, closeSheet, rupee, unitLabel, ago, clock, avatar,
          topbar, empty, banner, shrinkImage, speak, flagstrip, nm } from './ui.js';
 import { t, getLang, setLang, LANGS } from './i18n.js';
+import { artEl, categoryArt } from './art.js';
+import { seasonInfo, thisMonth, monthsOf, MONTHS, monthName } from './season.js';
 import { state, api, crop, category, district, zone, cacheListings, cachedListings,
          photoUrl } from './store.js';
 
@@ -11,7 +13,101 @@ let _installPrompt = null;
 export const setInstallPrompt = (e) => { _installPrompt = e; };
 export const installPrompt = () => _installPrompt;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const catArt = (k) => { const d = document.createElement('div'); d.className = 'art art-cat'; d.innerHTML = categoryArt(k); return d; };
+
+
+
+// ── saved listings ────────────────────────────────────────────────────────
+// Kept in this browser only. A watchlist is a private thing and does not need
+// to reach the server.
+export function savedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('tsongra.saved') || '[]')); }
+  catch { return new Set(); }
+}
+function toggleSaved(id) {
+  const set = savedIds();
+  set.has(id) ? set.delete(id) : set.add(id);
+  try { localStorage.setItem('tsongra.saved', JSON.stringify([...set])); } catch {}
+  return set.has(id);
+}
+function heartBtn(id, big = false) {
+  const b = h('button', { class: 'heart' + (big ? ' heart-lg' : '') + (savedIds().has(id) ? ' on' : ''),
+    'aria-label': t('save_it') });
+  b.textContent = savedIds().has(id) ? '♥' : '♡';
+  b.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const on = toggleSaved(id);
+    b.classList.toggle('on', on);
+    b.textContent = on ? '♥' : '♡';
+    if (on) toast(t('saved_title'));
+  };
+  return b;
+}
+
+// ── sharing ───────────────────────────────────────────────────────────────
+// WhatsApp is how Ladakh actually passes things around, so the share sheet
+// matters more here than a copy button.
+async function shareListing(l) {
+  const url = location.origin + location.pathname + '#/l/' + l.id;
+  const text = `${l.title} — ${rupee(l.price)}/${unitLabel(l.unit)} · ${l.village || ''}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: l.title, text, url }); return; } catch { return; }
+  }
+  try { await navigator.clipboard.writeText(`${text}
+${url}`); toast(t('copied')); }
+  catch { toast(url); }
+}
+
+// ── sparkline ─────────────────────────────────────────────────────────────
+function sparkline(series, up) {
+  if (!series || series.length < 3) return null;
+  const w = 62, ht = 20;
+  const min = Math.min(...series), max = Math.max(...series), span = (max - min) || 1;
+  const pts = series.map((v, i) =>
+    `${((i / (series.length - 1)) * w).toFixed(1)},${(ht - ((v - min) / span) * ht).toFixed(1)}`).join(' ');
+  const col = up > 0 ? 'var(--green)' : up < 0 ? 'var(--maroon)' : 'var(--ink-3)';
+  const d = document.createElement('div');
+  d.className = 'spark';
+  d.innerHTML = `<svg viewBox="0 0 ${w} ${ht}" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return d;
+}
+
+// ── photo gallery ─────────────────────────────────────────────────────────
+function gallery(l) {
+  const photos = (l.photos && l.photos.length) ? l.photos : (l.photoId ? [l.photoId] : []);
+  if (!photos.length) return h('div', { class: 'photo-big' }, artEl(l.cropKey, 'art-hero'));
+  const track = h('div', { class: 'gallery' },
+    ...photos.map((id) => h('div', { class: 'gslide' },
+      h('img', { src: photoUrl(id), alt: l.title }))));
+  if (photos.length === 1) return h('div', { class: 'gwrap' }, track);
+  const dots = h('div', { class: 'gdots' }, ...photos.map((_, i) => h('i', { class: i === 0 ? 'on' : '' })));
+  track.addEventListener('scroll', () => {
+    const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    [...dots.children].forEach((d, j) => d.classList.toggle('on', j === i));
+  }, { passive: true });
+  return h('div', { class: 'gwrap' }, track, dots);
+}
+
+// ── is this a fair price? ─────────────────────────────────────────────────
+// The rate board already knows what a crop usually fetches. Putting that next
+// to the asking price is the single most useful thing for someone who does not
+// visit Leh market often enough to know.
+async function marketBadge(l) {
+  try {
+    const { prices } = await api('/api/prices');
+    const row = prices.find((p) => p.cropKey === l.cropKey && p.unit === l.unit);
+    if (!row || row.reports < 3) return null;
+    const diff = l.price - row.median;
+    const pct = Math.abs(diff) / row.median;
+    const usual = `${rupee(row.median)}/${unitLabel(row.unit)}`;
+    if (pct < 0.08) return banner(`${t('vs_same')} — ${usual}`, '', '📊');
+    return banner(
+      `${rupee(Math.abs(diff))} ${diff < 0 ? t('vs_below') : t('vs_above')} — ${usual}`,
+      diff < 0 ? '' : 'warn', diff < 0 ? '📉' : '📈');
+  } catch { return null; }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Onboarding
@@ -188,12 +284,40 @@ export async function viewHome() {
         class: 'cat', onclick: () => go('#/c/' + c.key),
         oncontextmenu: (e) => { e.preventDefault(); speak(c.label, getLang()); },
       },
-        h('div', { class: 'ico' }, c.icon),
+        catArt(c.key),
         h('div', { class: 'lbl' }, nm(c)),
         h('div', { class: 'loc' }, c.local)))),
   );
 
   // The four things that make this app worth opening even when you are not buying.
+  // Crops actually being harvested this month, read from the catalogue's own
+  // season text so nobody has to maintain a list. September alone matches
+  // three dozen crops, which is true but useless as a strip — so the ones
+  // somebody is really selling today come first, and it stops at fourteen.
+  const seasonSlot = h('div');
+  root.append(seasonSlot);
+
+  const buildSeason = (live) => {
+    const m = thisMonth();
+    const onSale = new Set(live.map((l) => l.cropKey));
+    const seasonal = state.cat.CROPS
+      .map((c) => ({ c, s: seasonInfo(c, m) }))
+      .filter(({ c, s }) => s.inSeason && !/^all year$/i.test(c.season || '') && c.key !== 'other_item')
+      .sort((a, b) => (onSale.has(b.c.key) ? 1 : 0) - (onSale.has(a.c.key) ? 1 : 0))
+      .slice(0, 14);
+    if (!seasonal.length) return;
+    seasonSlot.replaceChildren(
+      h('div', { class: 'section-title' }, `🗓 ${t('in_season')} · ${monthName(m)}`),
+      h('p', { class: 'pad tiny muted', style: 'margin:-6px 0 0' }, t('in_season_sub')),
+      h('div', { class: 'chip-row season-row' },
+        ...seasonal.map(({ c, s }) => h('button', {
+          class: 'season-chip', onclick: () => go('#/crop/' + c.key),
+        }, artEl(c.key, 'art-season'),
+           h('span', { class: 'lbl' }, nm(c)),
+           onSale.has(c.key) ? h('span', { class: 'season-dot' }, '●')
+             : s.greenhouse ? h('span', { class: 'tiny muted' }, '🏠') : null))));
+  };
+
   root.append(h('div', { class: 'quick' },
     quickCard('🌱', t('seedbank_title'), t('seedbank_sub'), '#/seeds'),
     quickCard('📊', t('rates_title'), t('rates_sub'), '#/rates'),
@@ -223,11 +347,12 @@ export async function viewHome() {
   const slot = h('div', { class: 'list' }, h('div', { class: 'muted pad small' }, t('loading')));
   root.append(slot);
   fetchListings({}, 'home').then((ls) => {
+    buildSeason(ls);
     slot.replaceChildren(...(ls.length
       ? ls.slice(0, 8).map(listingCard)
       : [empty('🧺', t('nothing_yet'), t('nothing_yet_sub'),
           h('button', { class: 'btn btn-primary', onclick: () => go('#/sell') }, t('sell_title')))]));
-  }).catch((e) => slot.replaceChildren(h('div', { class: 'pad muted small' }, e.message)));
+  }).catch((e) => { buildSeason([]); slot.replaceChildren(h('div', { class: 'pad muted small' }, e.message)); });
 
   return root;
 }
@@ -270,9 +395,11 @@ async function fetchListings(params, cacheKey) {
 }
 
 export function listingCard(l) {
-  return h('button', { class: 'lcard', onclick: () => go('#/l/' + l.id) },
+  return h('div', { class: 'lcard-wrap' },
+    heartBtn(l.id),
+    h('button', { class: 'lcard', onclick: () => go('#/l/' + l.id) },
     h('div', { class: 'lthumb' },
-      l.photoId ? h('img', { src: photoUrl(l.photoId), alt: '', loading: 'lazy' }) : l.icon),
+      l.photoId ? h('img', { src: photoUrl(l.photoId), alt: '', loading: 'lazy' }) : artEl(l.cropKey)),
     h('div', { class: 'lbody' },
       h('div', { class: 'lname' }, l.title),
       h('div', { class: 'lloc' }, `${l.village || district(l.district).name} · ${ago(l.createdAt)}`),
@@ -281,14 +408,16 @@ export function listingCard(l) {
         l.deliversToMe ? h('span', { class: 'badge badge-turq' }, '🛵 ' + t('delivers_badge')) : null,
         l.organic ? h('span', { class: 'badge badge-green' }, '🌿 ' + t('organic_badge')) : null,
         l.negotiable ? h('span', { class: 'badge' }, '💬 ' + t('negotiable')) : null,
-        l.qty ? h('span', { class: 'badge badge-gold' }, `${l.qty} ${unitLabel(l.unit)} ${t('available')}`) : null)));
+        l.qty ? h('span', { class: 'badge badge-gold' }, `${l.qty} ${unitLabel(l.unit)} ${t('available')}`) : null))));
 }
 
-export async function viewBrowse(catKey, searchQ) {
+export async function viewBrowse(catKey, searchQ, cropKey) {
   const c = catKey && catKey !== 'all' ? category(catKey) : null;
+  const theCrop = cropKey ? crop(cropKey) : null;
   const filters = { deliver: false, organic: false, sort: 'new' };
   if (catKey && catKey !== 'all') filters.cat = catKey;
   if (searchQ) filters.q = searchQ;
+  if (cropKey) filters.crop = cropKey;
 
   const list = h('div', { class: 'list' }, h('div', { class: 'muted pad small' }, t('loading')));
 
@@ -309,10 +438,11 @@ export async function viewBrowse(catKey, searchQ) {
     const p = { sort: filters.sort };
     if (filters.cat) p.cat = filters.cat;
     if (filters.q) p.q = filters.q;
+    if (filters.crop) p.crop = filters.crop;
     if (filters.deliver) p.delivers = '1';
     if (filters.organic) p.organic = '1';
     try {
-      const ls = await fetchListings(p, 'browse.' + (filters.cat || filters.q || 'all'));
+      const ls = await fetchListings(p, 'browse.' + (filters.cat || filters.crop || filters.q || 'all'));
       list.replaceChildren(...(ls.length ? ls.map(listingCard)
         : [empty(c ? c.icon : '🔍', t('nothing_yet'), t('nothing_yet_sub'),
             h('button', { class: 'btn btn-primary', onclick: () => go('#/sell') }, t('sell_title')))]));
@@ -323,8 +453,8 @@ export async function viewBrowse(catKey, searchQ) {
   load();
 
   return h('div', { class: 'screen' },
-    topbar(searchQ ? `“${searchQ}”` : (c ? nm(c) : t('nav_bazaar')),
-      { sub: c ? c.local : null, back: () => go('#/home') }),
+    topbar(theCrop ? nm(theCrop) : searchQ ? `“${searchQ}”` : (c ? nm(c) : t('nav_bazaar')),
+      { sub: theCrop ? theCrop.local : c ? c.local : null, back: () => go('#/home') }),
     chipRow, list);
 }
 
@@ -348,6 +478,10 @@ export async function viewListing(id) {
     } catch (e) { toast(e.message); }
   };
 
+  // Filled in once the rate board answers; absent if too few reports to be fair.
+  const marketSlot = h('div', { style: 'margin-top:12px' });
+  marketBadge(l).then((b) => { if (b) marketSlot.append(b); });
+
   const actions = l.mine
     ? h('div', { class: 'sticky-actions' },
         h('button', { class: 'btn btn-ghost grow', onclick: () => ownerMenu(l) }, '⚙️ ' + t('my_listing')))
@@ -356,17 +490,23 @@ export async function viewListing(id) {
 
   root.replaceChildren(
     topbar(l.title, { sub: c.local, back: () => history.back() }),
-    h('div', { class: 'photo-big' },
-      l.photoId ? h('img', { src: photoUrl(l.photoId), alt: l.title }) : l.icon),
+    gallery(l),
     h('div', { class: 'pad', style: 'padding-top:14px' },
       h('div', { class: 'row-between' },
         h('div', {},
           h('div', { class: 'price-big' }, rupee(l.price), h('small', {}, ` / ${unitLabel(l.unit)}`)),
           h('div', { class: 'muted small' }, l.negotiable ? '💬 ' + t('negotiable') : '🔒 ' + t('fixed_price'))),
-        h('button', {
-          class: 'topbar-btn', style: 'background:var(--sand-2);color:var(--ink)',
-          'aria-label': 'Speak', onclick: () => speak(`${l.title}. ${rupee(l.price)} ${unitLabel(l.unit)}`, getLang()),
-        }, '🔊')),
+        h('div', { class: 'row', style: 'gap:8px' },
+          heartBtn(l.id, true),
+          h('button', {
+            class: 'topbar-btn', style: 'background:var(--sand-2);color:var(--ink)',
+            'aria-label': t('share'), onclick: () => shareListing(l),
+          }, '↗'),
+          h('button', {
+            class: 'topbar-btn', style: 'background:var(--sand-2);color:var(--ink)',
+            'aria-label': 'Speak', onclick: () => speak(`${l.title}. ${rupee(l.price)} ${unitLabel(l.unit)}`, getLang()),
+          }, '🔊'))),
+      marketSlot,
       h('div', { class: 'lbadges', style: 'margin-top:10px' },
         l.deliversToMe ? h('span', { class: 'badge badge-turq' }, '🛵 ' + t('delivers_badge')) : null,
         l.organic ? h('span', { class: 'badge badge-green' }, '🌿 ' + t('organic_badge')) : null,
@@ -469,7 +609,7 @@ export async function viewSeller(id) {
 export function viewSell() {
   if (!state.user) { go('#/signup'); return h('div'); }
   const draft = { cropKey: null, price: '', qty: '', unit: 'kg', note: '', organic: false,
-                  negotiable: true, photoId: null, harvested: '' };
+                  negotiable: true, photos: [], harvested: '' };
   let step = 0;
   const body = h('div');
   const steps = h('div', { class: 'steps' }, h('i'), h('i'), h('i'), h('i'));
@@ -495,7 +635,7 @@ export function viewSell() {
           ...items.map((c) => h('button', {
             class: 'pick' + (draft.cropKey === c.key ? ' on' : ''),
             onclick: () => { draft.cropKey = c.key; next(); },
-          }, h('div', { class: 'ico' }, c.icon),
+          }, artEl(c.key, 'art-pick'),
              h('div', { class: 'lbl' }, nm(c)),
              c.local ? h('div', { class: 'loc' }, c.local) : null))));
     }
@@ -518,7 +658,7 @@ export function viewSell() {
     return h('div', { class: 'pad', style: 'padding-top:10px' },
       h('h3', {}, t('step_price')),
       h('div', { class: 'card card-pad row', style: 'gap:12px;margin:12px 0' },
-        h('div', { style: 'font-size:34px' }, c.icon),
+        artEl(c.key, 'art-sm'),
         h('div', {}, h('b', {}, nm(c)), h('div', { class: 'tiny muted' }, c.local))),
       h('label', { class: 'field' }, h('span', {}, t('price_label')), price),
       h('label', { class: 'field' }, h('span', {}, t('unit_label')), unit),
@@ -543,39 +683,63 @@ export function viewSell() {
         }, t('next'))));
   }
 
-  // 3 — photo, shrunk in the browser before it ever touches the network
+  // 3 — photos, shrunk in the browser before they ever touch the network
   function stepPhoto() {
-    const preview = h('div', { class: 'photo-big', style: 'border-radius:16px;overflow:hidden' }, crop(draft.cropKey).icon);
-    const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
-    const cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+    const MAXP = 4;
+    const strip = h('div', { class: 'shots' });
     const status = h('div', { class: 'hint center' });
+    const file = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true });
+    const cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+
+    const paint = () => {
+      strip.replaceChildren(
+        ...draft.photos.map((id, i) => h('div', { class: 'shot' },
+          h('img', { src: photoUrl(id), alt: '' }),
+          h('button', {
+            class: 'shot-x', 'aria-label': t('remove'),
+            onclick: () => { draft.photos.splice(i, 1); paint(); },
+          }, '×'))),
+        draft.photos.length < MAXP
+          ? h('button', { class: 'shot shot-add', onclick: () => cam.click() },
+              h('span', {}, '📷'),
+              h('span', { class: 'tiny' }, draft.photos.length ? t('photo_more') : t('take_photo')))
+          : null);
+      nextBtn.textContent = draft.photos.length ? t('next') : t('skip_photo');
+    };
 
     const handle = async (input) => {
-      const f = input.files && input.files[0];
-      if (!f) return;
+      const files = [...(input.files || [])].slice(0, MAXP - draft.photos.length);
+      if (!files.length) return;
       status.textContent = t('loading');
-      try {
-        const blob = await shrinkImage(f);
-        preview.replaceChildren(h('img', { src: URL.createObjectURL(blob), alt: '' }));
-        const { photoId } = await api('/api/photos', { method: 'POST', raw: blob, type: 'image/jpeg' });
-        draft.photoId = photoId;
-        status.textContent = `✅ ${Math.round(blob.size / 1024)} KB`;
-      } catch (e) { status.textContent = e.message; }
+      let kb = 0;
+      for (const f of files) {
+        try {
+          const blob = await shrinkImage(f);
+          const { photoId } = await api('/api/photos', { method: 'POST', raw: blob, type: 'image/jpeg' });
+          draft.photos.push(photoId);
+          kb += Math.round(blob.size / 1024);
+        } catch (e) { status.textContent = e.message; }
+      }
+      status.textContent = `✅ ${draft.photos.length}/${MAXP} · ${kb} KB`;
+      input.value = '';
+      paint();
     };
     file.addEventListener('change', () => handle(file));
     cam.addEventListener('change', () => handle(cam));
 
+    const nextBtn = h('button', { class: 'btn btn-primary grow', onclick: next }, t('skip_photo'));
+    paint();
+
     return h('div', { class: 'pad', style: 'padding-top:10px' },
       h('h3', {}, t('step_photo')),
       h('p', { class: 'muted small' }, t('photo_help')),
-      preview, status, file, cam,
-      h('div', { class: 'stack', style: 'margin-top:14px' },
-        h('button', { class: 'btn btn-primary btn-block', onclick: () => cam.click() }, '📷 ' + t('take_photo')),
-        h('button', { class: 'btn btn-block', onclick: () => file.click() }, '🖼 ' + t('choose_photo'))),
+      h('p', { class: 'tiny muted', style: 'margin-top:-4px' }, t('photos_add')),
+      strip, status, file, cam,
+      h('button', { class: 'btn btn-block', style: 'margin-top:12px', onclick: () => file.click() },
+        '🖼 ' + t('choose_photo')),
       h('div', { class: 'row', style: 'margin-top:18px;gap:10px' },
         h('button', { class: 'btn btn-ghost', onclick: prev }, t('back')),
-        h('button', { class: 'btn btn-primary grow', onclick: next },
-          draft.photoId ? t('next') : t('skip_photo'))));
+        nextBtn));
   }
 
   // 4 — delivery, then publish
@@ -703,7 +867,7 @@ function seedCard(s, z) {
   const unsuited = !sow || /^Not |^Marginal|^—/.test(sow);
   return h('button', { class: 'seed-card', onclick: () => go('#/seed/' + s.key) },
     h('div', { class: 'seed-top' },
-      h('div', { class: 'seed-ico' }, s.icon),
+      artEl(s.key, 'seed-ico'),
       h('div', { class: 'grow' },
         h('div', { class: 'seed-head' }, nm(s)),
         s.local !== s.name ? h('div', { class: 'seed-local' }, s.local) : null,
@@ -735,7 +899,7 @@ export function viewSeed(key) {
     topbar(nm(s), { sub: s.local !== s.name ? s.local : null, back: true }),
     h('div', { class: 'pad', style: 'padding-top:14px' },
       h('div', { class: 'row', style: 'gap:14px' },
-        h('div', { class: 'seed-ico', style: 'width:64px;height:64px;font-size:34px' }, s.icon),
+        artEl(s.key, 'seed-ico art-lg'),
         h('div', { class: 'grow' }, statusBadge(s.status),
           h('p', { style: 'margin:8px 0 0;font-weight:600;line-height:1.45' }, s.headline))),
 
@@ -778,29 +942,6 @@ export function viewCalendar() {
   let z = localStorage.getItem('tsongra.zone') || 'mid';
   const table = h('div', { class: 'calendar' });
   const zoneRow = h('div', { class: 'chip-row' });
-
-  // Turn a phrase like "October – March under cover" or "March–April or October"
-  // into the months it actually covers. Two traps worth the care: a range can
-  // wrap the year end, and "or" / "," introduce separate windows rather than
-  // one long span.
-  const MONTH_RX = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/gi;
-
-  const monthsOf = (text) => {
-    if (!text || /^(not|marginal|—)/i.test(text.trim())) return [];
-    const out = new Set();
-    for (const part of text.split(/,| or | and again /i)) {
-      const seq = [];
-      for (const m of part.matchAll(MONTH_RX)) {
-        const i = MONTHS.findIndex((x) => m[1].toLowerCase().startsWith(x.toLowerCase()));
-        if (i >= 0) seq.push(i);
-      }
-      if (!seq.length) continue;
-      if (seq.length >= 2 && /[–—-]|\bto\b|through/i.test(part)) {
-        for (let i = seq[0]; ; i = (i + 1) % 12) { out.add(i); if (i === seq[seq.length - 1]) break; }
-      } else seq.forEach((i) => out.add(i));
-    }
-    return [...out];
-  };
 
   const render = () => {
     localStorage.setItem('tsongra.zone', z);
@@ -872,7 +1013,7 @@ const threadRow = (th) =>
     h('div', { class: 'lthumb', style: 'width:52px;height:52px;font-size:24px' },
       th.listing && th.listing.photoId
         ? h('img', { src: photoUrl(th.listing.photoId), alt: '', loading: 'lazy' })
-        : (th.listing ? th.listing.icon : '🧺')),
+        : artEl(th.listing ? th.listing.cropKey : null)),
     h('div', { class: 'grow' },
       h('div', { class: 'row-between' },
         h('b', { class: 'truncate' }, th.other.name),
@@ -1150,11 +1291,12 @@ export async function viewRates() {
     try {
       const { prices } = await api('/api/prices');
       list.replaceChildren(...(prices.length ? prices.map((p) => h('div', { class: 'rate-row' },
-        h('span', { style: 'font-size:26px;width:34px' }, p.crop.icon),
+        artEl(p.cropKey, 'art-row'),
         h('div', { class: 'grow' },
           h('b', {}, nm(p.crop)),
           h('div', { class: 'tiny muted' }, `${p.reports} ${t('from_reports')} · ${ago(p.updatedAt)}`)),
-        h('div', { style: 'text-align:end' },
+        sparkline(p.series, p.trend),
+        h('div', { class: 'rate-price' },
           h('div', { style: 'font-weight:800;color:var(--apricot-d)' }, `${rupee(p.median)}`),
           h('div', { class: 'tiny muted' }, `${rupee(p.low)}–${rupee(p.high)} / ${unitLabel(p.unit)}`),
           p.trend ? h('div', { class: 'tiny ' + (p.trend > 0 ? 'trend-up' : 'trend-down') },
@@ -1204,7 +1346,7 @@ export async function viewWanted() {
     try {
       const { wanted } = await api('/api/wanted');
       list.replaceChildren(...(wanted.length ? wanted.map((w) => h('div', { class: 'card card-pad row', style: 'gap:12px' },
-        h('span', { style: 'font-size:28px' }, w.crop.icon),
+        artEl(w.cropKey, 'art-row'),
         h('div', { class: 'grow' },
           h('b', {}, `${nm(w.crop)}${w.qty ? ' · ' + w.qty : ''}`),
           h('div', { class: 'tiny muted' }, `${w.user.name} · ${w.village || ''}, ${district(w.district).name} · ${ago(w.createdAt)}`),
@@ -1280,7 +1422,9 @@ export function viewMe(deferredPrompt) {
 
       h('div', { class: 'quick', style: 'padding-inline:0;margin-top:14px' },
         quickCard('📦', t('my_listings'), '', '#/mine'),
-        quickCard('💬', t('chats_title'), '', '#/chats')),
+        quickCard('♥', t('saved_title'), '', '#/saved'),
+        quickCard('💬', t('chats_title'), '', '#/chats'),
+        quickCard('📊', t('rates_title'), '', '#/rates')),
 
       h('div', { class: 'section-title', style: 'padding-inline:0' }, t('delivery_setup')),
       deliverySettings(),
@@ -1347,6 +1491,23 @@ function deliverySettings() {
           h('div', { class: 'tiny muted' }, t('delivery_on_sub'))))),
     h('div', { style: 'height:12px' }),
     detail, save);
+}
+
+export async function viewSaved() {
+  const root = h('div', { class: 'screen' }, topbar(t('saved_title'), { back: () => go('#/me') }));
+  const list = h('div', { class: 'list', style: 'padding-top:14px' },
+    h('div', { class: 'muted small' }, t('loading')));
+  root.append(list);
+  const ids = [...savedIds()].reverse();
+  const found = [];
+  for (const id of ids) {
+    try { const { listing } = await api('/api/listings/' + id); found.push(listing); }
+    catch { /* sold, removed, or offline — quietly skip */ }
+  }
+  list.replaceChildren(...(found.length ? found.map(listingCard)
+    : [empty('♡', t('no_saved'), t('no_saved_sub'),
+        h('button', { class: 'btn btn-primary', onclick: () => go('#/home') }, t('nav_bazaar')))]));
+  return root;
 }
 
 export async function viewMine() {

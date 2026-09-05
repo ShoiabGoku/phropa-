@@ -35,6 +35,8 @@ const ROUTES = [
   [/^#\/notices$/,            () => V.viewNotices(),         'bazaar'],
   [/^#\/me$/,                 () => V.viewMe(deferredPrompt),'me'],
   [/^#\/mine$/,               () => V.viewMine(),            'me'],
+  [/^#\/saved$/,              () => V.viewSaved(),           'me'],
+  [/^#\/crop\/(.+)$/,         (m) => V.viewBrowse(null, null, m[1]), 'bazaar'],
   [/^#\/signup$/,             () => V.viewAuth('signup'),    'me'],
   [/^#\/login$/,              () => V.viewAuth('login'),     'me'],
 ];

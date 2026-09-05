@@ -53,14 +53,17 @@ That handshake is the whole trust model, so it lives in one place
 
 | | |
 |---|---|
-| **Bazaar** | Seven picture-led categories, search (including voice search), filters for "delivers to me" and organic. |
-| **Sell** | Four steps and almost no typing: pick your crop from an icon grid → price and quantity → photo → delivery. |
+| **Bazaar** | Seven picture-led categories, search (including voice search), filters for "delivers to me" and organic. Every crop is drawn, so you can shop by sight. |
+| **In season now** | What Ladakh is actually harvesting this month, worked out from the catalogue's own season text and ranked so crops somebody is really selling come first. |
+| **Is this a fair price?** | Each listing is measured against the rate board's median — "₹5 below the usual rate — ₹40/kg" — so someone who rarely reaches Leh market still knows what their crop is worth. |
+| **Sell** | Four steps and almost no typing: pick your crop from a picture grid → price and quantity → up to four photos → delivery. |
 | **Delivery** | A merchant flips one switch, ticks the districts they cover, sets a charge and a free-above amount. Every listing they own instantly shows a **Delivers** badge to buyers inside that area — and stops showing it the moment they switch off. |
 | **Chat** | Quick-reply chips in the local language, structured **price offers**, and the deal handshake above. |
 | **Seed Bank** | 24 crops suited to Ladakh's cold desert — including ones almost nobody here grows yet — with sowing windows per altitude zone, and a month-grid sowing calendar. |
-| **Rate board** | Community-reported market prices with a median and a 14-day trend, so a farmer knows what their crop is actually worth before they bargain. |
+| **Rate board** | Community-reported market prices with a median, a 14-day trend and a sparkline, so a farmer knows what their crop is worth before they bargain. |
 | **Wanted** | Buyers post what they need; growers see the demand. |
 | **Notices** | Department schemes, GI-grading tips, fraud warnings. |
+| **Saved & share** | A heart on anything worth coming back to, and a share button that hands a listing straight to WhatsApp. |
 | **Offline** | Installable PWA. The app shell and the **entire Seed Bank** work with no signal at all. |
 
 ### Why the Seed Bank exists
@@ -143,8 +146,18 @@ a websocket, because on a village tower a dropped socket is far more likely than
 a dropped request and polling reconnects for free.
 
 **It is built to be used by people who do not read much.** Every category and
-crop is an icon first. Selling requires picking pictures, two numbers and a
+crop is a picture first. Selling requires picking pictures, two numbers and a
 photo. Long-press a category to hear it spoken. Search takes voice input.
+
+**The crops are drawn, not photographed.** Stock produce photos would have cost
+bandwidth Ladakh often does not have, broken when the signal went, and carried
+licences. `public/art.js` instead holds about twenty botanical shapes — stone
+fruit, taproot, leafy head, grain stalk, pod, bulb — and each of the 68 crops
+supplies a palette. A turnip and a beetroot are the same drawing in different
+colours, which is roughly true of turnips and beetroots. The whole set costs
+nothing over the wire, stays sharp from a 26px tile to a full-width hero, and
+works in aeroplane mode. Sellers can still add up to four real photographs of
+their own produce, downscaled in the browser before upload.
 
 **Ladakhi visual language.** Apricot (*chuli*) as the primary colour, monastery
 maroon, Pangong turquoise, mud-plaster sand; a five-colour prayer-flag ribbon
@@ -204,6 +217,8 @@ public/local-api.js  the same endpoints with no server, for the static demo
 public/app.js        boot, router, bottom nav
 public/views.js      every screen
 public/ui.js         DOM helpers, image downscaling, bidi handling
+public/art.js        the crop illustrations — ~20 shapes, 68 palettes
+public/season.js     reading "Oct – Mar" and friends into actual months
 public/store.js      state, API client, mode detection, offline caching
 public/i18n.js       the four languages
 public/sw.js         offline shell; caches the Seed Bank hard
