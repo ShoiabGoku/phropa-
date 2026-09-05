@@ -1,6 +1,7 @@
 // Tiny DOM helpers. No framework — this has to load fast on a 2G tail and a
 // five-year-old Android.
 import { t, isRTL, getLang } from './i18n.js';
+import { photoUrl } from './store.js';
 
 // Localised display name for a catalogue entry. Categories carry `label`,
 // crops/seeds/zones carry `name`/`label`; both fall back to English.
@@ -118,7 +119,8 @@ export function speak(text, lang) {
 
 export function avatar(user, size = 46) {
   const box = h('div', { class: 'avatar', style: `width:${size}px;height:${size}px;font-size:${size / 2.6}px` });
-  if (user && user.photoId) box.append(h('img', { src: `/photo/${user.photoId}`, alt: '', loading: 'lazy' }));
+  const src = user && photoUrl(user.photoId);
+  if (src) box.append(h('img', { src, alt: '', loading: 'lazy' }));
   else box.textContent = initials(user && user.name);
   return box;
 }

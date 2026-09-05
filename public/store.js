@@ -1,9 +1,18 @@
-// App state plus the API client. Everything the app knows lives here.
+// App state plus the API client.
+//
+// The app runs in two modes and every screen is identical in both:
+//   server — a Node process with SQLite behind it. A real marketplace.
+//   local  — no server at all (GitHub Pages). Everything is answered from
+//            browser storage by local-api.js. A demo, and it says so.
+// Mode is detected once at boot by asking for the catalogue.
+import { localApi, localPhoto } from './local-api.js';
+
 export const state = {
   user: null,
-  cat: null,        // catalogue from the server
+  cat: null,
   unread: 0,
   online: navigator.onLine,
+  local: false,      // true once we know there is no server
 };
 
 const LS = {
@@ -14,29 +23,63 @@ const LS = {
   set(k, v) { try { localStorage.setItem('tsongra.' + k, JSON.stringify(v)); } catch {} },
 };
 
+// Paths are relative so the app works from a sub-path (github.io/<repo>/)
+// exactly as it does from a domain root.
+const rel = (p) => p.replace(/^\//, '');
+
+const toDataUrl = (blob) => new Promise((res, rej) => {
+  const fr = new FileReader();
+  fr.onload = () => res(fr.result);
+  fr.onerror = () => rej(new Error('Could not read that photo'));
+  fr.readAsDataURL(blob);
+});
+
 export async function api(path, { method = 'GET', body, raw, type } = {}) {
+  if (state.local) {
+    // With no server there is nowhere to POST bytes, so a photo becomes a data
+    // URL held in this browser.
+    return localApi(path, { method, body, raw: raw instanceof Blob ? await toDataUrl(raw) : raw });
+  }
+
   const opts = { method, headers: {}, credentials: 'same-origin' };
   if (raw) { opts.body = raw; opts.headers['content-type'] = type || 'image/jpeg'; }
   else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers['content-type'] = 'application/json'; }
-  const res = await fetch(path, opts);
+  const res = await fetch(rel(path), opts);
   let data = {};
   try { data = await res.json(); } catch {}
   if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
   return data;
 }
 
-// The catalogue is static content and by far the most useful thing to have
-// offline — the whole Seed Bank lives in it.
-export async function loadCatalogue() {
-  const cached = LS.get('catalogue', null);
-  if (cached) state.cat = cached;
+// Where a stored photo lives. On a server it is a URL; with no server it is the
+// data URL itself, held in browser storage.
+export function photoUrl(id) {
+  if (!id) return null;
+  return state.local ? localPhoto(id) : rel(`/photo/${id}`);
+}
+
+// One request decides the mode, and it is the request we needed anyway.
+export async function boot() {
   try {
-    const c = await api('/api/catalogue');
-    state.cat = c;
-    LS.set('catalogue', c);
-  } catch {
-    if (!state.cat) throw new Error('Could not load. Check your connection.');
-  }
+    const res = await fetch(rel('/api/catalogue'), { credentials: 'same-origin' });
+    if (res.ok) {
+      const c = await res.json();
+      if (c && Array.isArray(c.CROPS)) {
+        state.local = false;
+        state.cat = c;
+        LS.set('catalogue', c);
+        return state.cat;
+      }
+    }
+  } catch { /* offline, or no server — fall through */ }
+
+  // No server answered. If we have a cached catalogue from a real server we are
+  // simply offline; otherwise this is a static host and we run locally.
+  const cached = LS.get('catalogue', null);
+  if (cached && navigator.onLine === false) { state.cat = cached; return state.cat; }
+
+  state.local = true;
+  state.cat = await localApi('/api/catalogue');
   return state.cat;
 }
 
@@ -46,7 +89,7 @@ export async function loadMe() {
     state.user = user;
     if (user) LS.set('me', user);
   } catch {
-    state.user = LS.get('me', null);   // offline: trust the last known session
+    state.user = state.local ? null : LS.get('me', null);
   }
   return state.user;
 }

@@ -5,6 +5,28 @@ traded **direct between neighbours**. No commission, no wallet, no middleman.
 
 *Tsongra* is the Ladakhi/Bhoti word for a marketplace.
 
+**▶ Try it: https://shoiabgoku.github.io/phropa-/**
+
+---
+
+## Two ways it runs
+
+The same code runs in two modes and every screen is identical in both. The app
+works out which one it is in with a single request at startup.
+
+| Mode | What's behind it | What it is |
+|---|---|---|
+| **Server** | Node + SQLite (`node server.js`) | A real marketplace. Many people, shared data, real chat between them. |
+| **Local** | Nothing at all — browser storage | The GitHub Pages demo. Everything works, but the data lives in that one browser and reaches nobody else. |
+
+The live link above is **local mode**, because GitHub Pages can only serve static
+files — it cannot run Node. A two-sided handshake cannot honestly be shown by one
+person alone, so the demo has a **persona switcher** (🎭, bottom right): agree a
+deal as the buyer, become the seller, agree again, and watch the phone numbers
+unlock. Reset the demo data from the same menu.
+
+For a real deployment with real users, run it in server mode.
+
 ---
 
 ## The one rule the app is built around
@@ -89,6 +111,20 @@ Choglamsar greenhouse grower who delivers into Leh).
 Data lives in `data/tsongra.db`. Delete it to start clean.
 `PORT` and `TSONGRA_DB` are both overridable by environment variable.
 
+The catalogue lives in `public/` rather than `lib/` on purpose: the Node server
+and the browser-only build import the very same file, so the crop data and Seed
+Bank can never drift between them.
+
+### Publishing the static demo
+
+`public/` is a complete, self-contained app. Push it as the Pages branch:
+
+```bash
+git subtree push --prefix public origin gh-pages
+```
+
+Then set Pages to serve from `gh-pages` / root.
+
 ### Deploying
 
 Any host that runs a Node process and keeps a writable disk works — Render, Fly,
@@ -162,12 +198,13 @@ These are honest gaps, not oversights:
 server.js            HTTP, routing, static files    (no dependencies)
 lib/db.js            SQLite schema (node:sqlite)
 lib/api.js           every endpoint; the deal handshake lives here
-lib/catalogue.js     crops, seed bank, altitude zones, the 7 districts
-lib/names.js         Hindi + Urdu names for categories, crops, seeds
+public/catalogue.js  crops, seed bank, altitude zones, the 7 districts
+public/names.js      Hindi + Urdu names for categories, crops, seeds
+public/local-api.js  the same endpoints with no server, for the static demo
 public/app.js        boot, router, bottom nav
 public/views.js      every screen
 public/ui.js         DOM helpers, image downscaling, bidi handling
-public/store.js      state, API client, offline caching
+public/store.js      state, API client, mode detection, offline caching
 public/i18n.js       the four languages
 public/sw.js         offline shell; caches the Seed Bank hard
 seed-demo.js         demo content
