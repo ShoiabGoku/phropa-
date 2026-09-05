@@ -188,6 +188,10 @@ const S = {
   logout:         ['Log out', 'लॉग आउट', 'Log out', 'لاگ آؤٹ'],
   install_app:    ['Install on your phone', 'फ़ोन में इंस्टॉल करें', 'Phone-la install byed', 'فون میں انسٹال کریں'],
   install_sub:    ['Works without internet for saved pages and the whole Seed Bank.', 'सहेजे पन्ने और पूरा बीज बैंक बिना इंटरनेट चलते हैं।', 'Nyar-ba-i shog-bu tang Sa-bön Bank internet med-par kyang khyab.', 'محفوظ صفحات اور پورا بیج بینک بغیر انٹرنیٹ چلتے ہیں۔'],
+  install_ios:    ['On iPhone: tap Share ⬆️, then “Add to Home Screen”.', 'आईफ़ोन पर: Share ⬆️ दबाएँ, फिर “Add to Home Screen”।', 'iPhone-la: Share ⬆️ non-te, “Add to Home Screen” dam.', 'آئی فون پر: Share ⬆️ دبائیں، پھر “Add to Home Screen”۔'],
+  install_android:['Tap the ⋮ menu in your browser, then “Install app”.', 'ब्राउज़र में ⋮ मेन्यू दबाएँ, फिर “Install app”।', 'Browser-i ⋮ menu non-te, “Install app” dam.', 'براؤزر میں ⋮ مینو دبائیں، پھر “Install app”۔'],
+  install_done:   ['Installed ✓', 'इंस्टॉल हो गया ✓', 'Install byas-tshar ✓', 'انسٹال ہو گیا ✓'],
+  install_later:  ['Not now', 'अभी नहीं', 'Da-lta min', 'ابھی نہیں'],
   language:       ['Language', 'भाषा', 'Skad', 'زبان'],
 
   // --- rates & wanted ----------------------------------------------------
