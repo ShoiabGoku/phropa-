@@ -6,6 +6,11 @@ import { state, api, crop, category, district, zone, cacheListings, cachedListin
 
 export const go = (hash) => { location.hash = hash; };
 
+// app.js owns the beforeinstallprompt event; views read it through here.
+let _installPrompt = null;
+export const setInstallPrompt = (e) => { _installPrompt = e; };
+export const installPrompt = () => _installPrompt;
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -104,6 +109,43 @@ export function viewAuth(mode = 'signup') {
       }, mode === 'signup' ? t('have_account') : t('new_here'))));
 }
 
+
+// ── install ───────────────────────────────────────────────────────────────
+export const isInstalled = () =>
+  window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+// Chrome only fires beforeinstallprompt when it feels like it, and iOS Safari
+// never does. So the card always appears and falls back to telling people
+// which menu to open.
+export function installCard(deferredPrompt, onDone) {
+  if (isInstalled()) {
+    return h('div', { class: 'card card-pad row', style: 'gap:10px' },
+      h('span', { style: 'font-size:22px' }, '📲'),
+      h('b', {}, t('install_done')));
+  }
+  const body = h('div', { class: 'card card-pad' },
+    h('b', {}, '📲 ' + t('install_app')),
+    h('p', { class: 'small muted', style: 'margin:6px 0 10px' }, t('install_sub')));
+
+  if (deferredPrompt) {
+    body.append(h('button', {
+      class: 'btn btn-primary btn-block',
+      onclick: async () => {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        if (onDone) onDone();
+      },
+    }, t('install_app')));
+  } else {
+    body.append(h('div', { class: 'banner', style: 'margin:0' },
+      h('span', { class: 'ico' }, isIOS() ? '⬆️' : '⋮'),
+      h('div', {}, isIOS() ? t('install_ios') : t('install_android'))));
+  }
+  return body;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Home
 // ═══════════════════════════════════════════════════════════════════════════
@@ -158,6 +200,22 @@ export async function viewHome() {
     quickCard('🙋', t('wanted_title'), t('wanted_sub'), '#/wanted'),
     quickCard('📢', t('notices_title'), t('notices_sub'), '#/notices'),
   ));
+
+  // A quiet nudge to install, once, and never again if it is waved away.
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('tsongra.installHidden') === '1'; } catch {}
+  if (!dismissed && !isInstalled()) {
+    const box = h('div', { class: 'pad', style: 'margin-top:16px' },
+      installCard(installPrompt(), () => box.remove()),
+      h('button', {
+        class: 'btn btn-ghost btn-block btn-sm', style: 'margin-top:8px',
+        onclick: () => {
+          try { localStorage.setItem('tsongra.installHidden', '1'); } catch {}
+          box.remove();
+        },
+      }, t('install_later')));
+    root.append(box);
+  }
 
   root.append(h('div', { class: 'section-title' }, t('fresh_today'),
     h('button', { class: 'tiny', style: 'color:var(--turq);font-weight:700', onclick: () => go('#/c/all') }, t('see_all'))));
@@ -1230,14 +1288,7 @@ export function viewMe(deferredPrompt) {
       h('div', { class: 'section-title', style: 'padding-inline:0' }, t('language')),
       langSel,
 
-      deferredPrompt ? h('div', { style: 'margin-top:18px' },
-        h('div', { class: 'card card-pad' },
-          h('b', {}, '📲 ' + t('install_app')),
-          h('p', { class: 'small muted', style: 'margin:6px 0 10px' }, t('install_sub')),
-          h('button', {
-            class: 'btn btn-primary btn-block',
-            onclick: async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; },
-          }, t('install_app')))) : null,
+      h('div', { style: 'margin-top:18px' }, installCard(deferredPrompt)),
 
       h('div', { style: 'margin-top:22px' }, banner(t('pay_direct'), 'warn', '💵')),
 

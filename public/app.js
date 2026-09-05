@@ -9,7 +9,12 @@ const app = $('#app');
 let deferredPrompt = null;
 let needsLanguagePick = false;
 
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  V.setInstallPrompt(e);
+  route();                       // repaint so the install card picks it up
+});
 
 // ── router ────────────────────────────────────────────────────────────────
 const ROUTES = [
