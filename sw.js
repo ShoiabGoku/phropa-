@@ -1,11 +1,11 @@
 // Offline shell. Connectivity in Ladakh drops for hours at a time, so the app
 // and the entire Seed Bank must open without a network.
-const V = 'tsongra-v1';
+const V = 'tsongra-v3';
 // Relative to the service-worker scope, so this works from a domain root and
 // from github.io/<repo>/ alike.
 const SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'views.js', 'ui.js', 'store.js',
-  'i18n.js', 'catalogue.js', 'names.js', 'local-api.js', 'icon.svg',
+  'i18n.js', 'catalogue.js', 'names.js', 'local-api.js', 'art.js', 'season.js', 'icon.svg',
   'icon-maskable.svg', 'manifest.webmanifest',
 ].map((p) => new URL(p, self.registration.scope).toString());
 

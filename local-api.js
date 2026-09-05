@@ -159,6 +159,7 @@ function shapeListing(l) {
   const viewer = me();
   return {
     ...l, cropName: c.name || l.title, cropLocal: c.local || '', icon: c.icon || '🧺',
+    photos: l.photos || (l.photoId ? [l.photoId] : []),
     createdAt: l.createdAt, mine: viewer ? viewer.id === l.sellerId : false,
     seller: publicUser(seller),
     deliversToMe: viewer ? deliversTo(seller, viewer.district) : false,
@@ -181,7 +182,7 @@ function shapeThread(t, withMessages) {
   const out = {
     id: t.id, listingId: t.listingId,
     listing: listing ? { id: listing.id, title: listing.title, price: listing.price, unit: listing.unit,
-      photoId: listing.photoId, icon: c.icon || '🧺', village: listing.village,
+      photoId: listing.photoId, icon: c.icon || '🧺', cropKey: listing.cropKey, village: listing.village,
       district: listing.district, status: listing.status, cropLocal: c.local || '' } : null,
     role: isBuyer ? 'buyer' : 'seller',
     other: publicUser(other, sealed),
@@ -283,7 +284,9 @@ function route(seg, method, b, q, raw) {
       title: String(b.title || crop.name).slice(0, 80), note: String(b.note || '').slice(0, 500),
       price: Math.round(Number(b.price)), unit: b.unit || 'kg', qty: Number(b.qty) || 0,
       negotiable: b.negotiable !== false, organic: !!b.organic, harvested: b.harvested || '',
-      photoId: b.photoId || null, district: b.district || u.district, village: b.village || u.village,
+      photoId: (Array.isArray(b.photos) && b.photos.length ? b.photos[0] : b.photoId) || null,
+      photos: Array.isArray(b.photos) ? b.photos.slice(0, 5) : (b.photoId ? [b.photoId] : []),
+      district: b.district || u.district, village: b.village || u.village,
       status: 'live', views: 0, createdAt: Date.now() };
     DB.listings.push(l);
     return { listing: shapeListing(l) };
@@ -308,6 +311,7 @@ function route(seg, method, b, q, raw) {
     if (b.qty !== undefined) l.qty = Number(b.qty) || 0;
     if (b.note !== undefined) l.note = String(b.note).slice(0, 500);
     if (b.negotiable !== undefined) l.negotiable = !!b.negotiable;
+    if (Array.isArray(b.photos)) { l.photos = b.photos.slice(0, 5); l.photoId = b.photos[0] || null; }
     if (b.status !== undefined && ['live', 'paused', 'sold'].includes(b.status)) l.status = b.status;
     return { listing: shapeListing(l) };
   }
@@ -411,7 +415,8 @@ function route(seg, method, b, q, raw) {
           high: sorted[sorted.length - 1].price, reports: list.length, unit: list[0].unit,
           updatedAt: list[0].createdAt,
           trend: older.length ? Math.round(((avg(recent) - avg(older)) / avg(older)) * 100) : 0,
-          markets: [...new Set(list.map((x) => x.market))] });
+          markets: [...new Set(list.map((x) => x.market))],
+          series: [...list].reverse().slice(-14).map((x) => x.price) });
       }
       return { prices: out.sort((x, y) => y.reports - x.reports) };
     }

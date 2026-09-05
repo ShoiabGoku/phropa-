@@ -204,6 +204,23 @@ const S = {
   wanted_qty:     ['How much do you need?', 'कितना चाहिए?', 'Ga-tshod gos?', 'کتنا چاہیے؟'],
   i_have_this:    ['I have this', 'यह मेरे पास है', 'Di nga-la yod', 'یہ میرے پاس ہے'],
 
+  // --- season, saving, sharing -------------------------------------------
+  in_season:      ['In season now', 'अभी मौसम में', 'Da-lta dus-la babs', 'ابھی موسم میں'],
+  in_season_sub:  ['What Ladakh is harvesting this month', 'इस महीने लद्दाख़ में क्या कट रहा है', 'Zla-ba dir Ladakh-la ci bsdu-in', 'اس مہینے لداخ میں کیا کٹ رہا ہے'],
+  greenhouse_tag: ['greenhouse', 'ग्रीनहाउस', 'greenhouse', 'گرین ہاؤس'],
+  vs_below:       ['below the usual rate', 'आम भाव से कम', 'rgyun-gyi rin-las nyung', 'عام نرخ سے کم'],
+  vs_above:       ['above the usual rate', 'आम भाव से ज़्यादा', 'rgyun-gyi rin-las mang', 'عام نرخ سے زیادہ'],
+  vs_same:        ['About the usual rate', 'आम भाव जितना', 'Rgyun-gyi rin dang mnyam', 'عام نرخ کے برابر'],
+  share:          ['Share', 'साझा करें', 'Share', 'شیئر کریں'],
+  copied:         ['Link copied', 'लिंक कॉपी हुआ', 'Link copy byas', 'لنک کاپی ہو گیا'],
+  saved_title:    ['Saved', 'सहेजे गए', 'Nyar-ba', 'محفوظ'],
+  save_it:        ['Save', 'सहेजें', 'Nyar', 'محفوظ کریں'],
+  no_saved:       ['Nothing saved yet', 'अभी कुछ सहेजा नहीं', 'Da-lta nyar-ba med', 'ابھی کچھ محفوظ نہیں'],
+  no_saved_sub:   ['Tap the heart on anything you want to come back to.', 'जो बाद में देखना हो उस पर दिल दबाएँ।', 'Phyir-la lta-rgyu-la snying dam.', 'جو بعد میں دیکھنا ہو اس پر دل دبائیں۔'],
+  photos_add:     ['Add up to 4 photos', '4 तक फ़ोटो जोड़ें', 'Par 4 bar-du tang', '4 تک تصاویر شامل کریں'],
+  photo_more:     ['Add another', 'और जोड़ें', 'Gzhan tang', 'مزید شامل کریں'],
+  remove:         ['Remove', 'हटाएँ', 'Phyir-len', 'ہٹائیں'],
+
   // --- generic -----------------------------------------------------------
   loading:        ['Loading…', 'लोड हो रहा है…', 'Skye-in…', 'لوڈ ہو رہا ہے…'],
   retry:          ['Try again', 'फिर कोशिश करें', 'Yang bad', 'دوبارہ کوشش کریں'],
